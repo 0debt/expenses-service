@@ -1,8 +1,12 @@
 import { Hono } from "hono";
 import expensesControllers from "./controllers/expensesControllers.ts"; 
+import { connectDB } from "./config/mongo.ts"; 
 
 //Inicializamos el servidor
 const app = new Hono();
+
+//Conexión a la BD 
+connectDB();
 
 app.route("/", expensesControllers);
 

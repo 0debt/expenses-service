@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import {getDatabase} from "../config/mongo.ts";
+import { Expense } from "../models/expenses.ts"; 
 
 let apiversion = "/api/v1";
 
@@ -16,26 +16,34 @@ expensesRoute.get("/health", (c) => {
 // POST /api/v1/expenses (Creation Endpoint)
 expensesRoute.post(`${apiversion}/expenses`, async (c) => {
     try {
-        // 1. Get database instance
-        const db = await getDatabase(); 
-        const collection = db.collection("expenses");
+        // 1. Obtenemos los datos reales del cuerpo de la petición
+        const body = await c.req.json();
 
-        // 2. Get data from request body (future: use c.req.json())
-        const newExpense = {
-            description: "Test Expense (via Refactored Controller)",
-            amount: 100,
-            date: new Date(),
-        }
+        // 2. Instanciamos el modelo de Mongoose
+        // Mongoose validará automáticamente que 'body' tenga los campos requeridos
+        const newExpense = new Expense({
+            ...body,
+            date: body.date ? new Date(body.date) : new Date() // Asegurar formato fecha
+        });
         
-        // 3. Insert and return result
-        const result = await collection.insertOne(newExpense);
-        return c.json({ status: "ok", message: "Expense created", data: result }, 201);
-    } catch (error) {
+        // 3. Guardamos en Atlas
+        const savedExpense = await newExpense.save();
+
+        return c.json({ 
+            status: "ok", 
+            message: "Expense created successfully", 
+            data: savedExpense 
+        }, 201);
+
+    } catch (error: any) {
         console.error("Error creating expense:", error);
-        return c.json({ status: "error", message: "Failed to create expense" }, 500);
+        
+        // Devolvemos un error 400 si la validación falla (ej: falta amount)
+        return c.json({ 
+            status: "error", 
+            message: error.message || "Failed to create expense" 
+        }, 400);
     }
-    // NOTICE: We no longer call client.close() here. 
-    // The connection pool in src/db/mongo.ts remains open and reusable.
 });
 
 export default expensesRoute;
