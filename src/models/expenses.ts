@@ -12,6 +12,9 @@ interface IExpenseShare {
 export interface IExpense extends Document {
   description: string;
   totalAmount: number;
+  originalAmount: number; // Monto original antes de cualquier conversión
+  currency: string;    // Moneda en la que se registró el gasto
+  exchangeRate: number; // Equivalencia a moneda base (ej: USD) 
   date: Date;
   payerId: string;     
   groupId: string;     
@@ -33,6 +36,18 @@ const ExpenseSchema = new Schema<IExpense>(
       type: Number, 
       required: true, 
       min: 0 
+    },
+    originalAmount: { 
+      type: Number, 
+      required: true},
+    currency: { 
+      type: String, 
+      required: true,
+      default: 'EUR' 
+    },
+    exchangeRate: { 
+      type: Number,
+      default: 1 
     },
     date: { 
       type: Date, 
