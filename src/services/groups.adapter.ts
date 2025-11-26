@@ -24,9 +24,8 @@ export const validateUserInGroup = async (groupId: string, userId: string): Prom
         return false;
 
     } catch (error) {
-        // 🚨 FALLBACK / MODO DESARROLLO
-        // Si la conexión falla (porque tus compañeros no han levantado el servidor),
-        // devolvemos TRUE para no bloquear tu trabajo, pero avisamos por consola.
+        // MODO DESARROLLO
+        
         console.warn(`⚠️ No se pudo conectar con groups-service. Modo simulacro activado: Asumiendo que el usuario es válido.`);
         return true; 
     }

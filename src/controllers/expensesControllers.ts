@@ -3,6 +3,9 @@ import { Expense } from "../models/expenses.ts";
 import { calculateGroupBalance, generatePayments } from "../services/balance.service.ts";
 import { convertCurrency } from "../services/currency.service.ts";
 import { validateUserInGroup } from "../services/groups.adapter.ts";
+import { getGroupStats } from "../services/stats.service.ts";
+import { redis } from "../config/redis.ts";
+
 
 let apiversion = "/api/v1";
 
@@ -69,6 +72,29 @@ expensesRoute.post(`${apiversion}/expenses`, async (c) => {
         // 5. Guardamos en Atlas
         const savedExpense = await newExpense.save();
 
+        // --- INVALIDACIÓN DE CACHÉ ---
+        // Si hay un gasto nuevo, el balance antiguo ya no sirve. Lo borramos.
+        await redis.del(`balance:${body.groupId}`);
+
+        // --- PUBLICACIÓN DE EVENTO (Redis Pub/Sub) ---
+        // Requisito: Notificar a otros servicios [cite: 70]
+        const eventPayload = {
+            type: 'expense.created',
+            data: {
+                expenseId: savedExpense._id,
+                groupId: savedExpense.groupId,
+                amount: savedExpense.totalAmount,
+                payerId: savedExpense.payerId,
+                description: savedExpense.description
+            },
+            timestamp: new Date()
+        };
+
+        // Publicamos en el canal 'events'
+        await redis.publish('events', JSON.stringify(eventPayload));
+        console.log("Evento 'expense.created' publicado en Redis");
+
+
         return c.json({ 
             status: "ok", 
             message: "Expense created successfully", 
@@ -104,25 +130,62 @@ expensesRoute.get(`${apiversion}/expenses/groups/:groupId`, async (c) => {
 // GET /api/v1/balances/:groupId
 expensesRoute.get(`${apiversion}/balances/:groupId`, async (c) => {
     const groupId = c.req.param('groupId');
+    const cacheKey = `balances:${groupId}`;
+
 
     try {
+        //Intentamos obtener datos de la caché
+        const cachedData = await redis.get(cacheKey);
+        if(cachedData) {
+            console.log(`Cache hit for group ${groupId}`);
+            return c.json({ status: "ok", 
+                data: JSON.parse(cachedData),
+                source: "cache" });
+            };
+        console.log(`Cache miss for group ${groupId}`);
         // Llamamos a nuestro servicio (lógica pura)
         const balances = await calculateGroupBalance(groupId);
 
         const payments = generatePayments(balances);
 
+        const responseData = { balances, payments };
+
+        // Guardamos el resultado en caché por 60 segundos 
+        await redis.set(cacheKey, JSON.stringify(responseData), 'EX', 60); 
+
         return c.json({
             status: "ok",
-            data: {
-                balances,
-                payments
-            }
+            data: responseData,
+            source: "database"
         });
     } catch (error: any) {
         console.error("Error calculating balance:", error);
         return c.json({ status: "error", message: "Failed to calculate balance" }, 500);
     }
 });
+
+
+// GET /api/v1/internal/stats/:groupId
+// Endpoint para comunicación entre microservicios (Analytics)
+expensesRoute.get(`${apiversion}/internal/stats/:groupId`, async (c) => {
+    const groupId = c.req.param('groupId');
+    
+    console.log(`Generando estadísticas internas para grupo: ${groupId}`);
+
+    try {
+        const stats = await getGroupStats(groupId);
+        
+        return c.json({
+            status: "ok",
+            data: stats
+        });
+    } catch (error: any) {
+        console.error("Error generating stats:", error);
+        return c.json({ status: "error", message: "Failed to generate stats" }, 500);
+    }
+});
+
+
 
 
 export default expensesRoute;
