@@ -23,6 +23,20 @@ expensesRoute.get("/health", (c) => {
 expensesRoute.post(`${apiversion}/expenses`, async (c) => {
     try {
         const body = await c.req.json();
+        const userPlan = c.req.header('X-User-Plan') || 'FREE';
+        if (userPlan === 'FREE') {
+            // Lógica para usuarios FREE: límite de 10 gastos por grupo
+            const count = await Expense.countDocuments({ groupId: body.groupId });
+            const LIMIT_FREE = 50;
+            if (count >= LIMIT_FREE) {
+                return c.json({ 
+                    status: "error", 
+                    message: `Free plan limit reached: Max ${LIMIT_FREE} expenses per group.`, 
+                    code: "LIMIT_REACHED",
+                }, 403); // 403 Forbidden
+            }
+
+        }
 
         // Requisito V2: Verificar membresía antes de crear gasto 
         const isMember = await validateUserInGroup(body.groupId, body.payerId);
@@ -185,7 +199,37 @@ expensesRoute.get(`${apiversion}/internal/stats/:groupId`, async (c) => {
     }
 });
 
+// GET /api/v1/internal/users/:userId/debt-status
+// Endpoint para la SAGA de borrado de usuarios
+expensesRoute.get(`${apiversion}/internal/users/:userId/debtStatus`, async (c) => {
+    const userId = c.req.param('userId');
 
+    try {
+        // Buscamos si el usuario aparece en algún share de gastos recientes
+        const hasExpenses = await Expense.exists({
+            $or: [
+                { payerId: userId },
+                { 'shares.userId': userId }
+            ]
+        });
+
+        // Si existe algún gasto donde participa, consideramos que tiene "historial/deuda" 
+        // y no es posible el borrado.
+        const hasDebt = !!hasExpenses;
+
+        return c.json({
+            status: "ok",
+            data: {
+                userId,
+                canDelete: !hasDebt, // Solo se puede borrar si NO tiene historial
+                hasPendingDebts: hasDebt
+            }
+        });
+
+    } catch (error) {
+        return c.json({ status: "error", message: "Check failed" }, 500);
+    }
+});
 
 
 export default expensesRoute;

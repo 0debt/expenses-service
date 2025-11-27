@@ -22,6 +22,7 @@ export interface IExpense extends Document {
   shares: IExpenseShare[]; // El desglose de quién debe cuánto
   createdAt: Date;
   updatedAt: Date;
+  category: 'FOOD' | 'TRANSPORT' | 'ACCOMMODATION' | 'ENTERTAINAMENT' | 'OTHER'; // Nueva categoría
 }
 
 // 2. Definión de las variables de nuestra BD
@@ -67,6 +68,13 @@ const ExpenseSchema = new Schema<IExpense>(
       type: String,
       enum: ['EQUAL', 'EXACT', 'PERCENTAGE'],
       default: 'EQUAL'
+    },
+    category: {
+      type: String,
+      enum: ['FOOD', 'TRANSPORT', 'ACCOMMODATION', 'ENTERTAINAMENT', 'OTHER'],
+      default: 'OTHER',
+      index: true // Para filtrar gastos por categoría
+  
     },
     // Aquí está la clave del algoritmo:
     // Guardamos cuánto le corresponde a cada participante
