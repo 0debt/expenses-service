@@ -159,9 +159,3 @@ To comply with the monetization strategy:
 4.  Push to the branch (`git push origin feature/amazing-feature`).
 5.  Open a Pull Request.
 
------
-
-**Developed with ❤️ by the 0debt Team (Pair 3: Expenses Service)**
-
-```
-```
