@@ -1,0 +1,55 @@
+import { z } from '@hono/zod-openapi';
+
+//Componentes básicos
+export const ShareSchema = z.object({
+  userId: z.string().openapi({ example: 'user_paco_123' }),
+  amount: z.number().openapi({ example: 50.00 })
+});
+
+//Esquema de Creación de Gasto (Input)
+export const CreateExpenseSchema = z.object({
+  description: z.string().min(3).openapi({ example: 'Cena en Roma' }),
+  totalAmount: z.number().positive().openapi({ example: 100.50 }),
+  currency: z.string().default('EUR').openapi({ example: 'EUR', description: 'Moneda original (USD, GBP...)' }),
+  payerId: z.string().openapi({ example: 'user_paco_123' }),
+  groupId: z.string().openapi({ example: 'viaje_italia_2024' }),
+  shares: z.array(ShareSchema),
+  date: z.string().datetime().optional().openapi({ example: '2024-11-27T20:00:00Z' })
+});
+
+//Esquema de Headers (Para el Plan del Usuario)
+export const HeadersSchema = z.object({
+  'X-User-Plan': z.enum(['FREE', 'PRO', 'ENTERPRISE']).optional().default('FREE').openapi({ example: 'FREE' })
+});
+
+//Esquema de Respuesta de Gasto (Output)
+export const ExpenseResponseSchema = CreateExpenseSchema.extend({
+  _id: z.string().openapi({ example: '65f1a2b3c4d5e6f7g8h9i0j' }),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  originalAmount: z.number().optional(),
+  exchangeRate: z.number().optional()
+});
+
+//Esquema para Balances
+export const BalanceResponseSchema = z.object({
+  balances: z.record(z.string(), z.number()).openapi({ example: { "Paco": 50, "Paloma": -50 } }),
+  payments: z.array(z.object({
+    from: z.string(),
+    to: z.string(),
+    amount: z.number()
+  })).openapi({ example: [{ from: "Paloma", to: "Paco", amount: 50 }] })
+});
+
+//Esquema de Error
+export const ErrorSchema = z.object({
+  status: z.string().openapi({ example: 'error' }),
+  message: z.string().openapi({ example: 'Validation Failed' }),
+  code: z.string().openapi({ example: 'LIMIT_REACHED' }).optional()
+});
+
+//Esquema para el Health Check
+export const HealthResponseSchema = z.object({
+  status: z.string().openapi({ example: 'ok' }),
+  message: z.string().openapi({ example: 'Expenses Service is running' })
+});
