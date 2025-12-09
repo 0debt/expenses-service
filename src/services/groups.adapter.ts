@@ -1,7 +1,7 @@
 // Este servicio se encarga de hablar con el microservicio de Grupos (groups-service)
 import CircuitBreaker from 'opossum';
 
-// Configuración del Cortacircuitos
+// Configuración del cirtuit breaker
 const breakerOptions = {
     timeout: 3000, // Si tarda más de 3s, falla
     errorThresholdPercentage: 50, // Si el 50% de las llamadas fallan, abrimos circuito

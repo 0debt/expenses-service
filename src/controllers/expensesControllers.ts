@@ -86,12 +86,11 @@ expensesRoute.post(`${apiversion}/expenses`, async (c) => {
         // 5. Guardamos en Atlas
         const savedExpense = await newExpense.save();
 
-        // --- INVALIDACIÓN DE CACHÉ ---
+        //INVALIDACIÓN DE CACHÉ
         // Si hay un gasto nuevo, el balance antiguo ya no sirve. Lo borramos.
         await redis.del(`balance:${body.groupId}`);
 
-        // --- PUBLICACIÓN DE EVENTO (Redis Pub/Sub) ---
-        // Requisito: Notificar a otros servicios [cite: 70]
+        //PUBLICACIÓN DE EVENTO (Redis Pub/Sub)
         const eventPayload = {
             type: 'expense.created',
             data: {

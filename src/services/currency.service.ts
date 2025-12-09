@@ -12,14 +12,13 @@ export const convertCurrency = async (
     to: string = 'EUR'
 ): Promise<ConversionResult> => {
     
-    // 1. Si la moneda es la misma, no llamamos a la API (ahorro de tiempo)
+    //Si la moneda es la misma, no llamamos a la API
     if (from === to) {
         return { amount: amount, rate: 1 };
     }
 
     try {
-        // 2. Llamada a la API Externa (Requisito V2)
-        // Ejemplo: https://api.frankfurter.app/latest?amount=100&from=USD&to=EUR
+        //Llamada a la API Externa
         const response = await fetch(
             `https://api.frankfurter.app/latest?amount=${amount}&from=${from}&to=${to}`
         );
