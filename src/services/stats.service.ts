@@ -1,34 +1,24 @@
-import { Expense } from "../models/expenses.ts";
+import { GroupStats } from "../models/GroupStats";
 
-interface GroupStats {
-    totalSpent: number;
-    byCategory: Record<string, number>; // Ej: { FOOD: 50, TRANSPORT: 20 }
-}
+export const getGroupStats = async (groupId: string) => {
+    // LEEMOS LA VISTA MATERIALIZADA (Lectura directa, sin cálculos)
+    const stats = await GroupStats.findOne({ groupId });
 
-export const getGroupStats = async (groupId: string): Promise<GroupStats> => {
-    const stats = await Expense.aggregate([
-        { $match: { groupId: groupId } },
-        { 
-            $group: {
-                _id: "$category", // Agrupamos por categoría
-                total: { $sum: "$totalAmount" }
-            }
-        }
-    ]);
+    if (!stats) {
+        return {
+            totalSpent: 0,
+            count: 0,
+            byCategory: {}
+        };
+    }
 
-    
-    // { totalSpent: 150, byCategory: { FOOD: 100, OTHER: 50 } }
-    
-    let totalSpent = 0;
-    const byCategory: Record<string, number> = {};
-
-    stats.forEach(item => {
-        byCategory[item._id] = Math.round(item.total * 100) / 100;
-        totalSpent += item.total;
-    });
+    // Convertimos el Map de Mongoose a objeto normal de JS
+    const categoryObj = Object.fromEntries(stats.categoryBreakdown);
 
     return {
-        totalSpent: Math.round(totalSpent * 100) / 100,
-        byCategory
+        totalSpent: Math.round(stats.totalSpent * 100) / 100,
+        count: stats.expenseCount,
+        byCategory: categoryObj,
+        lastUpdated: stats.lastUpdated
     };
 };

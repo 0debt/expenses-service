@@ -73,7 +73,8 @@ const ExpenseSchema = new Schema<IExpense>(
       type: String,
       enum: ['FOOD', 'TRANSPORT', 'ACCOMMODATION', 'ENTERTAINAMENT', 'OTHER'],
       default: 'OTHER',
-      index: true // Para filtrar gastos por categoría
+      index: true,
+      required: true
   
     },
     // Aquí está la clave del algoritmo:

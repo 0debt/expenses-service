@@ -22,6 +22,7 @@ app.get('/ui', swaggerUI({ url: '/doc'}));
 
 app.route("/", expensesOpenAPI);
 
+export { app };
 //SERVER
 const port = 3000
 console.log(`Server is running on port ${port}`);

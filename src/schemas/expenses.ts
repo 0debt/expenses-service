@@ -13,6 +13,10 @@ export const CreateExpenseSchema = z.object({
   currency: z.string().default('EUR').openapi({ example: 'EUR', description: 'Moneda original (USD, GBP...)' }),
   payerId: z.string().openapi({ example: 'user_paco_123' }),
   groupId: z.string().openapi({ example: 'viaje_italia_2024' }),
+  category: z.enum(['FOOD', 'TRANSPORT', 'ACCOMMODATION', 'ENTERTAINMENT', 'OTHER'])
+  .default('OTHER')
+  .openapi({ example: 'FOOD' }),
+
   shares: z.array(ShareSchema),
   date: z.string().datetime().optional().openapi({ example: '2024-11-27T20:00:00Z' })
 });
@@ -52,4 +56,29 @@ export const ErrorSchema = z.object({
 export const HealthResponseSchema = z.object({
   status: z.string().openapi({ example: 'ok' }),
   message: z.string().openapi({ example: 'Expenses Service is running' })
+});
+
+
+//Esquema del desglose de categorías
+export const StatsResponseSchema = z.object({
+  totalSpent: z.number().openapi({ example: 150.50 }),
+  count: z.number().openapi({ example: 5 }),
+  lastUpdated: z.string().datetime().openapi({ example: '2024-12-01T10:00:00Z' }),
+  byCategory: z.record(z.string(), z.number()).openapi({ 
+    example: { 
+      'FOOD': 100.50, 
+      'TRANSPORT': 50.00 
+    } 
+  })
+});
+
+
+// Esquema para la actualización de gastos 
+export const UpdateExpenseSchema = CreateExpenseSchema.partial();
+
+// Esquema para la respuesta de borrado
+export const DeleteResponseSchema = z.object({
+  status: z.string().openapi({ example: 'ok' }),
+  message: z.string().openapi({ example: 'Expense deleted successfully' }),
+  deletedId: z.string().openapi({ example: '65f1...' })
 });
