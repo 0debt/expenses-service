@@ -397,6 +397,184 @@ app.openapi(getGroupExpensesRoute, async (c) => {
     }
 });
 
+// --- GET /expenses/:id (Obtener un gasto específico) ---
+const getExpenseByIdRoute = createRoute({
+  method: 'get',
+  path: `${apiversion}/expenses/{id}`,
+  tags: ['Gastos'],
+  summary: 'Obtener un gasto por ID',
+  description: 'Recupera los detalles completos de un gasto específico.',
+  request: {
+    params: z.object({ id: z.string() })
+  },
+  responses: {
+    200: { 
+      content: { 'application/json': { schema: z.object({ status: z.string(), data: ExpenseResponseSchema }) } }, 
+      description: 'Gasto encontrado' 
+    },
+    404: { 
+      content: { 'application/json': { schema: ErrorSchema } }, 
+      description: 'Gasto no encontrado' 
+    },
+    500: { 
+      content: { 'application/json': { schema: ErrorSchema } }, 
+      description: 'Error interno' 
+    }
+  }
+});
+
+app.openapi(getExpenseByIdRoute, async (c) => {
+  const { id } = c.req.valid('param');
+  
+  try {
+    const expense = await Expense.findById(id);
+    
+    if (!expense) {
+      return c.json({ status: "error", message: "Expense not found" }, 404);
+    }
+
+    // Normalizar respuesta - asegurar que los campos obligatorios nunca sean undefined
+    const now = new Date().toISOString();
+    const expenseData = {
+      _id: String(expense._id),
+      description: expense.description,
+      totalAmount: expense.totalAmount,
+      originalAmount: expense.originalAmount,
+      currency: expense.currency,
+      exchangeRate: expense.exchangeRate,
+      date: expense.date ? new Date(expense.date).toISOString() : now,
+      payerId: String(expense.payerId),
+      groupId: String(expense.groupId),
+      splitType: expense.splitType,
+      category: expense.category as "FOOD" | "TRANSPORT" | "ACCOMMODATION" | "ENTERTAINMENT" | "OTHER",
+      shares: (expense.shares || []).map((s: any) => ({ 
+        userId: String(s.userId), 
+        amount: s.amount 
+      })),
+      isSettlement: expense.isSettlement || false,
+      createdAt: expense.createdAt ? new Date(expense.createdAt).toISOString() : now,
+      updatedAt: expense.updatedAt ? new Date(expense.updatedAt).toISOString() : now
+    };
+    
+    return c.json({ status: "ok", data: expenseData }, 200);
+  } catch (error: any) {
+    return c.json({ status: "error", message: error.message }, 500);
+  }
+});
+
+
+// --- POST /settlements (Registrar pago de deuda) ---
+const createSettlementRoute = createRoute({
+  method: 'post',
+  path: `${apiversion}/settlements`,
+  tags: ['Settlements'],
+  summary: 'Registrar un pago entre usuarios',
+  description: 'Crea un registro de liquidación cuando un usuario paga su deuda a otro. Esto afecta el balance del grupo.',
+  request: {
+    body: {
+      content: { 
+        'application/json': { 
+          schema: z.object({
+            groupId: z.string().openapi({ example: 'viaje_usa_2025' }),
+            fromUserId: z.string().openapi({ example: 'user-123', description: 'Usuario que paga la deuda' }),
+            toUserId: z.string().openapi({ example: 'user-456', description: 'Usuario que recibe el pago' }),
+            amount: z.number().positive().openapi({ example: 75.50, description: 'Cantidad pagada' })
+          })
+        } 
+      }
+    }
+  },
+  responses: {
+    201: { 
+      content: { 
+        'application/json': { 
+          schema: z.object({ 
+            status: z.string(), 
+            message: z.string(),
+            data: z.object({
+              settlementId: z.string(),
+              groupId: z.string(),
+              fromUserId: z.string(),
+              toUserId: z.string(),
+              amount: z.number()
+            })
+          }) 
+        } 
+      }, 
+      description: 'Settlement registrado correctamente' 
+    },
+    400: { 
+      content: { 'application/json': { schema: ErrorSchema } }, 
+      description: 'Error de validación' 
+    },
+    500: { 
+      content: { 'application/json': { schema: ErrorSchema } }, 
+      description: 'Error interno' 
+    }
+  }
+});
+
+app.openapi(createSettlementRoute, async (c) => {
+  const body = c.req.valid('json');
+  
+  try {
+    // Crear un "gasto" especial de tipo settlement
+    // La lógica: fromUser "pagó" a toUser, entonces:
+    // - fromUser aparece como pagador (payerId)
+    // - toUser aparece en shares (recibe el dinero)
+    // Esto hace que el balance se ajuste correctamente
+    const settlement = new Expense({
+      description: `💸 Settlement payment`,
+      totalAmount: body.amount,
+      originalAmount: body.amount,
+      currency: 'EUR',
+      exchangeRate: 1,
+      payerId: body.fromUserId,
+      groupId: body.groupId,
+      category: 'OTHER',
+      splitType: 'EXACT',
+      shares: [
+        { userId: body.toUserId, amount: body.amount }
+      ],
+      isSettlement: true,
+      date: new Date()
+    });
+    
+    const saved = await settlement.save();
+    
+    // Invalidar caché de balances
+    await redis.del(`balances:${body.groupId}`);
+    
+    // Publicar evento
+    await redis.publish('events', JSON.stringify({
+      type: 'settlement.created',
+      data: {
+        settlementId: saved._id,
+        groupId: body.groupId,
+        fromUserId: body.fromUserId,
+        toUserId: body.toUserId,
+        amount: body.amount
+      },
+      timestamp: new Date()
+    }));
+    
+    return c.json({ 
+      status: "ok", 
+      message: "Settlement recorded successfully",
+      data: {
+        settlementId: String(saved._id),
+        groupId: body.groupId,
+        fromUserId: body.fromUserId,
+        toUserId: body.toUserId,
+        amount: body.amount
+      }
+    }, 201);
+    
+  } catch (error: any) {
+    return c.json({ status: "error", message: error.message }, 500);
+  }
+});
+
 //Rutas Internas (SAGA & Stats)
 
 // Ejemplo internal stats documentado

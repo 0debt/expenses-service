@@ -23,6 +23,7 @@ export interface IExpense extends Document {
   createdAt: Date;
   updatedAt: Date;
   category: 'FOOD' | 'TRANSPORT' | 'ACCOMMODATION' | 'ENTERTAINAMENT' | 'OTHER'; // Nueva categoría
+  isSettlement: boolean;
 }
 
 // 2. Definión de las variables de nuestra BD
@@ -76,6 +77,10 @@ const ExpenseSchema = new Schema<IExpense>(
       index: true,
       required: true
   
+    },
+    isSettlement: {
+      type: Boolean,
+      default: false
     },
     // Aquí está la clave del algoritmo:
     // Guardamos cuánto le corresponde a cada participante

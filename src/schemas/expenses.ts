@@ -82,3 +82,22 @@ export const DeleteResponseSchema = z.object({
   message: z.string().openapi({ example: 'Expense deleted successfully' }),
   deletedId: z.string().openapi({ example: '65f1...' })
 });
+
+export const SettlementSchema = z.object({
+  groupId: z.string().openapi({ example: 'viaje_usa_2025' }),
+  fromUserId: z.string().openapi({ example: 'user-123', description: 'Usuario que paga' }),
+  toUserId: z.string().openapi({ example: 'user-456', description: 'Usuario que recibe' }),
+  amount: z.number().positive().openapi({ example: 75.50 })
+});
+
+export const SettlementResponseSchema = z.object({
+  status: z.string(),
+  message: z.string(),
+  data: z.object({
+    settlementId: z.string(),
+    groupId: z.string(),
+    fromUserId: z.string(),
+    toUserId: z.string(),
+    amount: z.number()
+  }).optional()
+});
