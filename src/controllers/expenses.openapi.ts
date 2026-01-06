@@ -80,7 +80,7 @@ app.openapi(createExpenseRoute, async (c) => {
     //LÓGICA DE PLANES
     if (userPlan === 'FREE') {
         const count = await Expense.countDocuments({ groupId: body.groupId });
-        const LIMIT_FREE = 50;
+        const LIMIT_FREE = 25;
         if (count >= LIMIT_FREE) {
             return c.json({ 
                 status: "error", 
