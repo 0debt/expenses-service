@@ -22,7 +22,7 @@ export interface IExpense extends Document {
   shares: IExpenseShare[]; // El desglose de quién debe cuánto
   createdAt: Date;
   updatedAt: Date;
-  category: 'FOOD' | 'TRANSPORT' | 'ACCOMMODATION' | 'ENTERTAINAMENT' | 'OTHER'; // Nueva categoría
+  category: 'FOOD' | 'TRANSPORT' | 'ACCOMMODATION' | 'ENTERTAINMENT' | 'OTHER'; // Nueva categoría
   isSettlement: boolean;
 }
 
@@ -72,7 +72,7 @@ const ExpenseSchema = new Schema<IExpense>(
     },
     category: {
       type: String,
-      enum: ['FOOD', 'TRANSPORT', 'ACCOMMODATION', 'ENTERTAINAMENT', 'OTHER'],
+      enum: ['FOOD', 'TRANSPORT', 'ACCOMMODATION', 'ENTERTAINMENT', 'OTHER'],
       default: 'OTHER',
       index: true,
       required: true
