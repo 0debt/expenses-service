@@ -1,13 +1,11 @@
-import { describe, expect, test, mock } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { generatePayments } from "../src/services/balance.service";
-
-
 
 describe("Algoritmo de Deuda (Expenses Service)", () => {
     
+    // ========== ESCENARIOS POSITIVOS ==========
+    
     test("Debe simplificar una deuda directa simple", () => {
-        // Escenario: Paco pagó 100€ por Paloma
-        // Balance: Paco (+50), Paloma (-50) -> Asumiendo split 50/50 de 100 total
         const balances = {
             "Paco": 50,
             "Paloma": -50
@@ -22,9 +20,6 @@ describe("Algoritmo de Deuda (Expenses Service)", () => {
     });
 
     test("Debe resolver una deuda circular (A->B->C)", () => {
-        // Escenario: A debe 10 a B, B debe 10 a C.
-        // Matemáticamente: A (-10), B (0), C (+10)
-        // El algoritmo debería decir "A paga 10 a C" directamente.
         const balances = {
             "A": -10,
             "B": 0,
@@ -46,5 +41,97 @@ describe("Algoritmo de Deuda (Expenses Service)", () => {
         };
         const result = generatePayments(balances);
         expect(result).toHaveLength(0);
+    });
+
+    test("Debe manejar múltiples deudores y un solo acreedor", () => {
+        const balances = {
+            "Carlos": 100,
+            "Ana": -60,
+            "Luis": -40
+        };
+
+        const result = generatePayments(balances);
+
+        expect(result).toHaveLength(2);
+        const totalPagos = result.reduce((sum, p) => sum + p.amount, 0);
+        expect(totalPagos).toBe(100);
+    });
+
+    test("Debe manejar un solo deudor y múltiples acreedores", () => {
+        const balances = {
+            "María": -100,
+            "Juan": 60,
+            "Pedro": 40
+        };
+
+        const result = generatePayments(balances);
+
+        expect(result).toHaveLength(2);
+        const pagosDeMaría = result.filter(p => p.from === "María");
+        expect(pagosDeMaría).toHaveLength(2);
+    });
+
+    test("Debe simplificar deudas complejas de grupo grande", () => {
+        const balances = {
+            "Paco": 150,
+            "Paloma": -50,
+            "Ana": -30,
+            "Luis": -70
+        };
+
+        const result = generatePayments(balances);
+
+        result.forEach(payment => {
+            expect(payment.to).toBe("Paco");
+        });
+
+        const total = result.reduce((sum, p) => sum + p.amount, 0);
+        expect(total).toBe(150);
+    });
+
+    test("Debe manejar cantidades con decimales correctamente", () => {
+        const balances = {
+            "A": 33.33,
+            "B": -16.67,
+            "C": -16.66
+        };
+
+        const result = generatePayments(balances);
+
+        expect(result.length).toBeGreaterThan(0);
+        result.forEach(payment => {
+            expect(payment.amount).toBeGreaterThan(0);
+        });
+    });
+
+    // ========== ESCENARIOS NEGATIVOS / EDGE CASES ==========
+
+    test("Debe manejar objeto de balances vacío", () => {
+        const balances = {};
+        const result = generatePayments(balances);
+        expect(result).toHaveLength(0);
+    });
+
+    test("Debe manejar un solo usuario sin deudas", () => {
+        const balances = {
+            "SoloUser": 0
+        };
+        const result = generatePayments(balances);
+        expect(result).toHaveLength(0);
+    });
+
+    test("Debe manejar balances que suman exactamente cero", () => {
+        const balances = {
+            "A": 100,
+            "B": -50,
+            "C": -30,
+            "D": -20
+        };
+
+        const result = generatePayments(balances);
+
+        const sumaBalances = Object.values(balances).reduce((a, b) => a + b, 0);
+        expect(sumaBalances).toBe(0);
+        expect(result.length).toBeGreaterThan(0);
     });
 });
